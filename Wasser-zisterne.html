@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Zisterne</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap');
+
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1c2333;
+    --border: rgba(255,255,255,0.08);
+    --border2: rgba(255,255,255,0.14);
+    --text: #e6edf3;
+    --muted: #7d8590;
+    --blue: #388bfd;
+    --blue-dim: rgba(56,139,253,0.15);
+    --green: #3fb950;
+    --green-dim: rgba(63,185,80,0.15);
+    --amber: #d29922;
+    --amber-dim: rgba(210,153,34,0.15);
+    --red: #f85149;
+    --red-dim: rgba(248,81,73,0.15);
+    --teal: #39c5cf;
+    --teal-dim: rgba(57,197,207,0.12);
+    --r: 10px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 2rem 1rem 4rem;
+  }
+
+  .page { max-width: 680px; margin: 0 auto; }
+
+  /* Header */
+  .page-header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    margin-bottom: 2rem;
+    padding-bottom: 1.25rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .page-title {
+    font-family: 'DM Mono', monospace;
+    font-size: 22px;
+    font-weight: 500;
+    letter-spacing: -0.5px;
+    color: var(--teal);
+  }
+  .page-title span { color: var(--muted); font-weight: 400; font-size: 14px; margin-left: 8px; font-family: 'DM Sans', sans-serif; }
+  .page-sub { font-size: 12px; color: var(--muted); text-align: right; line-height: 1.6; }
+
+  /* Alert */
+  .alert {
+    display: none;
+    align-items: center;
+    gap: 10px;
+    background: var(--red-dim);
+    border: 1px solid rgba(248,81,73,0.3);
+    border-radius: var(--r);
+    padding: 12px 16px;
+    margin-bottom: 1.25rem;
+    font-size: 13px;
+    color: var(--red);
+    font-weight: 500;
+  }
+  .alert.warn { background: var(--amber-dim); border-color: rgba(210,153,34,0.3); color: var(--amber); }
+  .alert.show { display: flex; }
+
+  /* Tank visual */
+  .tank-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    padding: 1.25rem;
+    margin-bottom: 1.25rem;
+  }
+  .tank-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+  .tank-visual {
+    width: 60px;
+    flex-shrink: 0;
+    position: relative;
+  }
+  .tank-svg { width: 100%; }
+  .tank-info { flex: 1; }
+  .tank-level-big {
+    font-family: 'DM Mono', monospace;
+    font-size: 36px;
+    font-weight: 500;
+    color: var(--text);
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+  .tank-level-big span { font-size: 16px; color: var(--muted); margin-left: 4px; }
+  .tank-pct-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .tank-pct { font-size: 14px; color: var(--muted); }
+  .tank-pct strong { color: var(--text); }
+  .reserve-label { font-size: 11px; background: var(--amber-dim); color: var(--amber); border-radius: 4px; padding: 2px 8px; }
+  .bar-wrap { height: 6px; background: rgba(255,255,255,0.08); border-radius: 99px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 99px; transition: width 0.5s cubic-bezier(.4,0,.2,1); }
+  .bar-reserve-marker { position: relative; margin-top: 4px; }
+  .bar-reserve-tick {
+    position: absolute;
+    top: -12px;
+    width: 1px;
+    height: 8px;
+    background: var(--amber);
+  }
+  .bar-reserve-lbl { font-size: 10px; color: var(--amber); position: absolute; top: -12px; transform: translateX(-50%); white-space: nowrap; }
+
+  /* Metrics row */
+  .metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 1.25rem; }
+  .metric {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    padding: 14px;
+  }
+  .metric-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+  .metric-val { font-family: 'DM Mono', monospace; font-size: 20px; font-weight: 500; }
+  .metric-unit { font-size: 11px; color: var(--muted); }
+  .c-green { color: var(--green); }
+  .c-amber { color: var(--amber); }
+  .c-red { color: var(--red); }
+  .c-blue { color: var(--blue); }
+  .c-teal { color: var(--teal); }
+
+  /* Forms */
+  .forms { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 1.25rem; }
+  @media (max-width: 520px) { .forms { grid-template-columns: 1fr; } }
+  .form-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    padding: 1rem 1.1rem 1.1rem;
+  }
+  .form-card h3 {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .form-card h3 .dot {
+    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+  }
+  .field { margin-bottom: 10px; }
+  .field label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 5px; }
+  .field input, .field textarea {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    padding: 7px 10px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .field input:focus, .field textarea:focus { border-color: var(--teal); }
+  .field textarea { resize: none; }
+  .field .hint { font-size: 12px; color: var(--teal); margin-top: 4px; font-family: 'DM Mono', monospace; }
+  input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.5); }
+  .btn {
+    width: 100%;
+    padding: 8px;
+    border-radius: 6px;
+    border: 1px solid var(--border2);
+    background: transparent;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+    margin-top: 4px;
+  }
+  .btn:hover { background: var(--surface2); border-color: var(--teal); }
+  .btn-rain:hover { border-color: var(--blue); }
+  .btn-take:hover { border-color: var(--amber); }
+
+  /* History */
+  .history-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    overflow: hidden;
+  }
+  .history-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .history-head h3 { font-size: 13px; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px; }
+  .history-list { }
+  .entry {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+    transition: background 0.1s;
+  }
+  .entry:last-child { border-bottom: none; }
+  .entry:hover { background: rgba(255,255,255,0.02); }
+  .entry-icon {
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    font-size: 16px;
+    margin-top: 1px;
+  }
+  .icon-rain { background: var(--blue-dim); color: var(--blue); }
+  .icon-take { background: var(--amber-dim); color: var(--amber); }
+  .icon-reset { background: var(--teal-dim); color: var(--teal); }
+  .entry-body { flex: 1; min-width: 0; }
+  .entry-title { font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .entry-meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .entry-note { font-size: 12px; color: var(--muted); font-style: italic; margin-top: 1px; }
+  .entry-right { text-align: right; flex-shrink: 0; }
+  .entry-amount { font-family: 'DM Mono', monospace; font-weight: 500; font-size: 13px; }
+  .entry-level { font-size: 11px; color: var(--muted); margin-top: 2px; font-family: 'DM Mono', monospace; }
+  .del-btn {
+    background: none; border: none; cursor: pointer;
+    color: var(--muted); font-size: 16px; padding: 4px; margin-top: -2px;
+    border-radius: 4px; transition: color 0.15s, background 0.15s;
+    flex-shrink: 0;
+  }
+  .del-btn:hover { color: var(--red); background: var(--red-dim); }
+  .empty { padding: 2rem; text-align: center; color: var(--muted); font-size: 13px; }
+
+  /* Season reset */
+  .season-row {
+    display: flex; gap: 8px; align-items: center;
+    padding: 12px 16px;
+    border-top: 1px solid var(--border);
+  }
+  .season-row label { font-size: 12px; color: var(--muted); white-space: nowrap; }
+  .season-row input { width: 90px; }
+  .btn-season { flex-shrink: 0; color: var(--teal); border-color: rgba(57,197,207,0.3); }
+  .btn-season:hover { background: var(--teal-dim); border-color: var(--teal); }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="page-header">
+    <div>
+      <div class="page-title">⬡ Zisterne<span>5.000 L Kapazität</span></div>
+    </div>
+    <div class="page-sub">
+      1 mm Regen = 130 L<br>
+      Pumpenreserve: 500 L
+    </div>
+  </div>
+
+  <div class="alert" id="alert-danger">
+    ⚠ Kritisch! Füllstand unter 600 L – Pumpe gefährdet!
+  </div>
+  <div class="alert warn" id="alert-warn">
+    ⚡ Füllstand unter 1.000 L – Reserve wird knapp.
+  </div>
+
+  <!-- Tank visual -->
+  <div class="tank-card">
+    <div class="tank-row">
+      <div class="tank-visual">
+        <svg class="tank-svg" viewBox="0 0 60 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="8" y="10" width="44" height="100" rx="6" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.12)" stroke-width="1.5"/>
+          <rect x="8" y="10" width="44" height="4" rx="3" fill="rgba(255,255,255,0.08)"/>
+          <rect id="water-rect" x="9" y="50" width="42" height="59" rx="0 0 5 5" fill="#388bfd" opacity="0.7"/>
+          <rect id="water-top" x="9" y="49" width="42" height="3" rx="2" fill="#5aa0ff" opacity="0.5"/>
+          <line id="reserve-line" x1="9" y1="101" x2="51" y2="101" stroke="#d29922" stroke-width="1" stroke-dasharray="3 2"/>
+          <text x="53" y="104" fill="#d29922" font-size="7" font-family="monospace">min</text>
+        </svg>
+      </div>
+      <div class="tank-info">
+        <div class="tank-level-big" id="disp-level">5.000 <span>Liter</span></div>
+        <div class="tank-pct-row">
+          <div class="tank-pct">Füllstand: <strong id="disp-pct">100%</strong></div>
+          <div class="reserve-label">Reserve 500 L</div>
+        </div>
+        <div style="position: relative;">
+          <div class="bar-wrap">
+            <div class="bar-fill" id="bar-fill" style="width:100%; background: var(--green);"></div>
+          </div>
+          <div style="position:relative; height: 16px;">
+            <div style="position:absolute; left:10%; top:0; width:1px; height:6px; background:var(--amber);"></div>
+            <div style="position:absolute; left:10%; top:7px; font-size:10px; color:var(--amber); transform:translateX(-50%); white-space:nowrap;">500 L</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Metrics -->
+  <div class="metrics">
+    <div class="metric">
+      <div class="metric-label">Nutzbar</div>
+      <div class="metric-val c-teal" id="m-usable">4.500</div>
+      <div class="metric-unit">Liter (−Reserve)</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Einträge</div>
+      <div class="metric-val" id="m-entries">0</div>
+      <div class="metric-unit">gesamt</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Saison-Entnahme</div>
+      <div class="metric-val c-amber" id="m-taken">0</div>
+      <div class="metric-unit">Liter</div>
+    </div>
+  </div>
+
+  <!-- Input forms -->
+  <div class="forms">
+    <div class="form-card">
+      <h3><span class="dot" style="background:var(--blue);"></span>Regen eintragen</h3>
+      <div class="field">
+        <label>Niederschlag (mm)</label>
+        <input type="number" id="rain-mm" min="0" step="0.1" placeholder="z.B. 12.5">
+        <div class="hint" id="rain-hint">= 0 Liter</div>
+      </div>
+      <div class="field">
+        <label>Datum</label>
+        <input type="date" id="rain-date">
+      </div>
+      <div class="field">
+        <label>Notiz (optional)</label>
+        <textarea id="rain-note" rows="2" placeholder="z.B. Gewitter abends"></textarea>
+      </div>
+      <button class="btn btn-rain" onclick="addRain()">+ Regen eintragen</button>
+    </div>
+
+    <div class="form-card">
+      <h3><span class="dot" style="background:var(--amber);"></span>Entnahme eintragen</h3>
+      <div class="field">
+        <label>Entnommen (Liter)</label>
+        <input type="number" id="take-l" min="0" step="1" placeholder="z.B. 250">
+      </div>
+      <div class="field">
+        <label>Datum</label>
+        <input type="date" id="take-date">
+      </div>
+      <div class="field">
+        <label>Notiz (optional)</label>
+        <textarea id="take-note" rows="2" placeholder="z.B. Garten gewässert"></textarea>
+      </div>
+      <button class="btn btn-take" onclick="addTake()">+ Entnahme eintragen</button>
+    </div>
+  </div>
+
+  <!-- History -->
+  <div class="history-card">
+    <div class="history-head">
+      <h3>Verlauf</h3>
+    </div>
+    <div class="history-list" id="history-list">
+      <div class="empty">Noch keine Einträge.</div>
+    </div>
+    <div class="season-row">
+      <label>Neue Saison mit</label>
+      <input type="number" id="reset-val" value="5000" min="0" max="5000" step="100" class="field" style="margin-bottom:0; padding:6px 8px;">
+      <span style="font-size:13px; color:var(--muted);">L</span>
+      <button class="btn btn-season" onclick="resetSeason()" style="width:auto; padding:7px 14px;">↺ Saisonstart</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const MAX = 5000;
+const RESERVE = 500;
+const MM_TO_L = 130;
+const KEY = 'zisterne_v2';
+
+let entries = [];
+
+function load() {
+  try {
+    const d = localStorage.getItem(KEY);
+    if (d) entries = JSON.parse(d);
+  } catch(e) { entries = []; }
+  if (entries.length === 0) {
+    entries.push({ id: Date.now(), type:'reset', date: today(), liters: MAX, note:'Saisonstart' });
+  }
+  render();
+}
+
+function save() {
+  try { localStorage.setItem(KEY, JSON.stringify(entries)); } catch(e){}
+}
+
+function today() {
+  return new Date().toISOString().slice(0,10);
+}
+
+function computeLevel(upTo) {
+  let lvl = 0;
+  for (let i = 0; i < upTo; i++) {
+    const e = entries[i];
+    if (e.type === 'reset') lvl = e.liters;
+    else if (e.type === 'rain') lvl = Math.min(MAX, lvl + e.liters);
+    else if (e.type === 'take') lvl = Math.max(0, lvl - e.liters);
+  }
+  return lvl;
+}
+
+function seasonTaken() {
+  let total = 0;
+  let inSeason = false;
+  for (const e of entries) {
+    if (e.type === 'reset') { total = 0; inSeason = true; }
+    else if (e.type === 'take' && inSeason) total += e.liters;
+  }
+  return total;
+}
+
+function fmtDate(d) {
+  if (!d) return '';
+  const [y,m,day] = d.split('-');
+  return day+'.'+m+'.'+y;
+}
+
+function fmtN(n) { return Math.round(n).toLocaleString('de-DE'); }
+
+function getBarColor(pct) {
+  if (pct < 12) return 'var(--red)';
+  if (pct < 22) return 'var(--amber)';
+  if (pct < 45) return 'var(--blue)';
+  return 'var(--green)';
+}
+
+function render() {
+  const lvl = computeLevel(entries.length);
+  const pct = Math.round(lvl / MAX * 100);
+  const usable = Math.max(0, lvl - RESERVE);
+
+  // Header displays
+  document.getElementById('disp-level').innerHTML = fmtN(lvl) + ' <span>Liter</span>';
+  document.getElementById('disp-pct').textContent = pct + '%';
+  document.getElementById('m-usable').textContent = fmtN(usable);
+  document.getElementById('m-entries').textContent = entries.length;
+  document.getElementById('m-taken').textContent = fmtN(seasonTaken());
+
+  // Bar
+  const bar = document.getElementById('bar-fill');
+  bar.style.width = pct + '%';
+  bar.style.background = getBarColor(pct);
+
+  // Tank SVG fill
+  const waterH = Math.max(0, (lvl / MAX) * 99);
+  const rect = document.getElementById('water-rect');
+  const top = document.getElementById('water-top');
+  const yStart = 109 - waterH;
+  rect.setAttribute('y', yStart);
+  rect.setAttribute('height', waterH);
+  rect.setAttribute('fill', pct < 12 ? '#f85149' : pct < 22 ? '#d29922' : pct < 45 ? '#388bfd' : '#3fb950');
+  top.setAttribute('y', yStart - 1.5);
+  top.style.display = waterH > 4 ? '' : 'none';
+
+  // Alerts
+  const danger = document.getElementById('alert-danger');
+  const warn = document.getElementById('alert-warn');
+  danger.className = 'alert' + (lvl < 600 ? ' show' : '');
+  warn.className = 'alert warn' + (lvl >= 600 && lvl < 1000 ? ' show' : '');
+
+  // History
+  const list = document.getElementById('history-list');
+  if (entries.length === 0) { list.innerHTML = '<div class="empty">Noch keine Einträge.</div>'; return; }
+
+  const rows = [...entries].reverse().map((e, ri) => {
+    const idx = entries.length - 1 - ri;
+    const lvlAfter = computeLevel(idx + 1);
+    let iconClass, iconChar, title, amtTxt, amtClass;
+    if (e.type === 'rain') {
+      iconClass = 'icon-rain'; iconChar = '🌧';
+      title = fmtN(e.mm) + ' mm Regen → +' + fmtN(e.liters) + ' L';
+      amtTxt = '+' + fmtN(e.liters) + ' L'; amtClass = 'c-blue';
+    } else if (e.type === 'take') {
+      iconClass = 'icon-take'; iconChar = '🪣';
+      title = 'Entnahme ' + fmtN(e.liters) + ' L';
+      amtTxt = '−' + fmtN(e.liters) + ' L'; amtClass = 'c-amber';
+    } else {
+      iconClass = 'icon-reset'; iconChar = '⬡';
+      title = 'Saisonstart';
+      amtTxt = fmtN(e.liters) + ' L'; amtClass = 'c-teal';
+    }
+    const noteHtml = e.note ? `<div class="entry-note">${e.note}</div>` : '';
+    return `<div class="entry">
+      <div class="entry-icon ${iconClass}">${iconChar}</div>
+      <div class="entry-body">
+        <div class="entry-title">${title}</div>
+        <div class="entry-meta">${fmtDate(e.date)}</div>
+        ${noteHtml}
+      </div>
+      <div class="entry-right">
+        <div class="entry-amount ${amtClass}">${amtTxt}</div>
+        <div class="entry-level">→ ${fmtN(lvlAfter)} L</div>
+      </div>
+      <button class="del-btn" onclick="del(${e.id})" title="Löschen">✕</button>
+    </div>`;
+  });
+  list.innerHTML = rows.join('');
+}
+
+document.getElementById('rain-mm').addEventListener('input', function() {
+  const mm = parseFloat(this.value) || 0;
+  document.getElementById('rain-hint').textContent = '= ' + fmtN(mm * MM_TO_L) + ' Liter';
+});
+
+function addRain() {
+  const mm = parseFloat(document.getElementById('rain-mm').value);
+  if (!mm || mm <= 0) { alert('Bitte Millimeter eingeben.'); return; }
+  const date = document.getElementById('rain-date').value || today();
+  const note = document.getElementById('rain-note').value.trim();
+  entries.push({ id: Date.now(), type:'rain', date, mm, liters: Math.round(mm * MM_TO_L), note });
+  save(); render();
+  document.getElementById('rain-mm').value = '';
+  document.getElementById('rain-note').value = '';
+  document.getElementById('rain-hint').textContent = '= 0 Liter';
+}
+
+function addTake() {
+  const l = parseFloat(document.getElementById('take-l').value);
+  if (!l || l <= 0) { alert('Bitte Liter eingeben.'); return; }
+  const date = document.getElementById('take-date').value || today();
+  const note = document.getElementById('take-note').value.trim();
+  entries.push({ id: Date.now(), type:'take', date, liters: l, note });
+  save(); render();
+  document.getElementById('take-l').value = '';
+  document.getElementById('take-note').value = '';
+}
+
+function del(id) {
+  if (!confirm('Eintrag löschen?')) return;
+  entries = entries.filter(e => e.id !== id);
+  save(); render();
+}
+
+function resetSeason() {
+  const val = Math.min(MAX, parseInt(document.getElementById('reset-val').value) || MAX);
+  if (!confirm('Neue Saison starten mit ' + fmtN(val) + ' L?')) return;
+  entries.push({ id: Date.now(), type:'reset', date: today(), liters: val, note: 'Saisonstart' });
+  save(); render();
+}
+
+const now = today();
+document.getElementById('rain-date').value = now;
+document.getElementById('take-date').value = now;
+
+load();
+</script>
+</body>
+</html>
